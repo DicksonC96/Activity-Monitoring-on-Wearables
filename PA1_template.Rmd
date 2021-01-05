@@ -1,25 +1,93 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+# Activity Monitoring Dataset
+By: DicksonC  
+Source: http://github.com/rdpeng/RepData_PeerAssessment1
+
+### Importing the required library
+``` {r library, message=FALSE}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(lattice)
+```
+
+### Loading and preprocessing the data
+``` {r preprocessing}
+# Reading dataset
+data <- read.csv(unz("activity.zip", "activity.csv"), na.strings = "NA")
+# Formatting date column
+data$date <- ymd(as.character(data$date))
+summary(data)
+```
+
+### What is mean total number of steps taken per day?
+``` {r meansteps, message=FALSE, warning=FALSE}
+# Grouping data by date and calculate sum
+totalsteps <- data %>%
+              select(date, steps) %>%
+              group_by(date) %>%
+              summarize(total.steps = sum(steps))
+# Plotting histogram
+with(totalsteps, qplot(total.steps, geom = "histogram", ylab = "days"))
+# Calculate mean and median of the total number of steps taken per day
+summary <- summary(totalsteps)
+noquote(summary[c(4, 3),2])
+```
+
+### What is the average daily activity pattern?
+``` {r avgsteps, message=FALSE, warning=FALSE}
+# Grouping data by interval and calculate mean
+avgsteps <- data %>%
+            select(interval, steps) %>%
+            group_by(interval) %>%
+            summarize(average.steps = mean(steps, na.rm = TRUE))
+# Plotting points
+with(avgsteps, qplot(interval, average.steps, geom = "path"))
+# Maximum number of steps in 5-minute interval on average across the days
+index <- which.max(avgsteps$average.steps)
+as.integer(avgsteps[index, "interval"])
+```
+
+### Imputing missing values
+``` {r missingval, message=FALSE, warning=FALSE}
+# Total number of missing values in the dataset
+sum(is.na(data))
+```
+``` {r replaceNA, message=FALSE, warning=FALSE}
+# Replacing missing values with mean by interval
+cleandata <- data %>%
+             group_by(interval) %>%
+             mutate(average.steps = mean(steps, na.rm = TRUE)) %>%
+             mutate(steps = ifelse(is.na(steps), average.steps, steps)) %>%
+             select(steps, date)
+# Checking if any missing values in the new dataset
+sum(is.na(cleandata))
+```
+``` {r totalsteps, message=FALSE, warning=FALSE}
+# Grouping cleandata by date and calculate sum
+totalcleansteps <- cleandata %>%
+                   select(date, steps) %>%
+                   group_by(date) %>%
+                   summarize(total.steps = sum(steps))
+# Plotting histogram
+with(totalcleansteps, qplot(total.steps, geom = "histogram", ylab = "days"))
+# Calculate mean and median of the total number of steps taken per day
+cleansummary <- summary(totalcleansteps)
+# Difference with missing values
+data.frame(Data = c("With NAs", "Without NAs"), 
+           Mean = c(parse_number(summary[4, 2]), parse_number(cleansummary[4, 2])),
+           Median = c(parse_number(summary[3,2]), parse_number(cleansummary[3, 2])))
+```
+
+### Are there differences in activity patterns between weekdays and weekends?
+``` {r weekdayweekend, message=FALSE, warning=FALSE}
+wdwe <- cleandata %>%
+        # Creating new variable for weekdays/weekends in cleandata
+        mutate(weekday.weekend = factor(ifelse(wday(date) %in% c(1,7), "weekend", "weekday"))) %>%
+        # Grouping cleandata by weekdays/weekends and interval before calculate average
+        group_by(weekday.weekend, interval) %>%
+        summarize(Average.steps = mean(steps))
+with(wdwe, qplot(interval, Average.steps, facets = weekday.weekend~., geom = "line"))
+```
 
 
-## Loading and preprocessing the data
-
-
-
-## What is mean total number of steps taken per day?
-
-
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
